@@ -1,0 +1,58 @@
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# pipenv / poetry / hatch
+Pipfile.lock
+poetry.lock
+.pytest_cache/
+.cache/
+
+# -----------------------------
+# Logs & runtime
+# -----------------------------
+*.log
+*.pid
+*.gz
+*.tmp
+
+# -----------------------------
+# Config & secrets
+# -----------------------------
+# Don’t commit local config, secrets, or API keys
+.env
+.env.*
+config.local.*
+*.secret.*
+*.token
+
+# -----------------------------
+# Editors / IDEs
+# -----------------------------
+.vscode/
+.idea/
+*.iml
+
+# -----------------------------
+# OS files
+# -----------------------------
+.DS_Store
+Thumbs.db
