@@ -10,6 +10,12 @@ log = structlog.get_logger()
 mcp = FastMCP("Integritas MCP Server")
 
 @mcp.tool()
+async def health(_: dict | None = None, ctx: Optional[Context] = None) -> HealthResponse:
+    """Lightweight liveness/readiness check for stdio hosts."""
+    req_id = getattr(ctx, "request_id", None) if ctx is not None else None
+    return await check_health(req_id)
+
+@mcp.tool()
 async def stamp_hash(req: StampRequest, ctx: Optional[Context] = None) -> StampResponse:
     """
     Stamp a content hash on the Minima blockchain.

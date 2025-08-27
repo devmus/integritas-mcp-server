@@ -1,6 +1,10 @@
+# src/integritas_mcp_server/models.py
+
 from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 import base64, re
+from typing import Literal, Optional
+from datetime import datetime, timezone
 
 HEX_RE = re.compile(r"^(0x)?[0-9a-fA-F]+$")
 
@@ -31,3 +35,13 @@ class StampResponse(BaseModel):
     uid: str = Field(..., description="Server-side UID correlating to the stamp operation.")
     stamped_at: str | None = Field(None, description="ISO-8601 UTC timestamp when accepted.")
     summary: str = Field(..., description="Human-readable summary of the result.")
+
+class HealthResponse(BaseModel):
+    status: Literal["ok", "degraded", "down"] = "ok"
+    server: str = "Integritas MCP Server"
+    version: str = "0.1.0"
+    time_utc: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    upstream_reachable: bool = True
+    upstream_status: Optional[int] = None
+    upstream_latency_ms: Optional[int] = None
+    summary: str = "Healthy"
