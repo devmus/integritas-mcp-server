@@ -1,38 +1,46 @@
 # src/integritas_mcp_server/http_app.py
 from __future__ import annotations
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 from .models import StampRequest, StampResponse
 from .errors import MCPServerError
 from .services.stamp import stamp as stamp_service
 from .config import get_settings
+from .http_client import get_json
 
 app = FastAPI(title="Integritas MCP Server – HTTP shim", version="0.1.0")
 
 # --- Liveness: process is up
-@app.get("/tools/health")
-async def health_tools():
+@app.get("/health")
+async def health():
     return {"status": "ok"}
 
 # --- Readiness: upstream reachable + auth works
-
 @app.get("/tools/readyz")
-async def readyz():
+async def readyz(x_request_id: str | None = Header(default=None)):
     s = get_settings()
     try:
-        # very lightweight upstream probe
-        r = await get_json("/v1/web/check/health")   # or a cheap HEAD/GET you already trust
+        r = await get_json("/v1/web/check/health", x_request_id=x_request_id)
         ok = r.status_code < 300
     except Exception:
         ok = False
 
-    return (
-        {"status": "ok", "upstream": "ok"},
-        200
-    ) if ok else (
-        {"status": "degraded", "upstream": "unreachable"},
-        503
-    )
+    if ok:
+        return JSONResponse(status_code=200, content={
+            "status": "ok",
+            "upstream": "ok",
+            "service": "integritas-mcp-server",
+            "version": app.version,
+        })
+    else:
+        return JSONResponse(status_code=503, content={
+            "status": "degraded",
+            "upstream": "unreachable",
+            "service": "integritas-mcp-server",
+            "version": app.version,
+        })
 
+# --- Tool: stamp
 @app.post("/tools/stamp", response_model=StampResponse)
 async def stamp(req: StampRequest, x_request_id: str | None = Header(default=None)):
     try:
