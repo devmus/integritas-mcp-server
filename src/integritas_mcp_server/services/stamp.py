@@ -1,0 +1,52 @@
+# src/integritas_mcp_server/services/stamp.py
+from __future__ import annotations
+from typing import Optional, Any, Dict
+import structlog
+from ..config import get_settings
+from ..http_client import post_json
+from ..errors import map_status_to_error, MCPServerError
+from ..models import StampResponse
+
+log = structlog.get_logger()
+
+# Single source of truth for the upstream path
+PATH_STAMP = "/v1/timestamp/post"
+
+def _pick(d: Dict[str, Any], *keys: str):
+    for k in keys:
+        if isinstance(d, dict) and k in d and d[k] is not None:
+            return d[k]
+    return None
+
+def _parse_payload(payload: Dict[str, Any]) -> StampResponse:
+    # Support both shapes:
+    # 1) { "message": "...", "timestamp": "...", "data": { "uid": "...", "tx_id": "..." } }
+    # 2) { "uid": "...", "tx_id": "...", "stamped_at": "..." }
+    inner = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+
+    uid = _pick(inner, "uid") or _pick(payload, "uid", "id") or ""
+    tx_id = _pick(inner, "tx_id", "txid") or _pick(payload, "tx_id", "txid")
+    stamped_at = (
+        _pick(payload, "timestamp", "stamped_at", "created_at")
+        or _pick(inner, "timestamp", "stamped_at")
+    )
+    summary = payload.get("message") or (f"Stamp accepted (uid={uid})" if uid else "Stamp accepted")
+
+    return StampResponse(uid=uid, tx_id=tx_id, stamped_at=stamped_at, summary=summary)
+
+async def stamp(hash_hex: str, request_id: Optional[str] = None) -> StampResponse:
+    s = get_settings()
+    headers = {"x-request-id": request_id or "integritas-mcp", "content-type": "application/json"}
+    if s.minima_api_key:
+        headers["x-api-key"] = s.minima_api_key
+
+    r = await post_json(PATH_STAMP, json={"hash": hash_hex}, headers=headers)
+
+    if r.status_code >= 300:
+        detail = r.text
+        err = map_status_to_error(r.status_code, detail)
+        log.warning("upstream_error", status=r.status_code, detail=detail)
+        raise err  # subclasses MCPServerError
+
+    payload = r.json()
+    return _parse_payload(payload)

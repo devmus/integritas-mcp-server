@@ -1,0 +1,32 @@
+from __future__ import annotations
+import asyncio, os
+import typer
+import uvicorn
+from .server import serve_stdio
+from .http_app import app as http_app
+from .config import get_settings
+from .logging_setup import setup_logging
+
+cli = typer.Typer(no_args_is_help=True, add_completion=False)   
+
+@cli.command("stdio")
+def cmd_stdio():
+    """Run as an MCP stdio server."""
+    asyncio.run(serve_stdio())
+
+@cli.command("http")
+def cmd_http(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8787, "--port"),
+    reload: bool = typer.Option(False, "--reload"),
+):
+    setup_logging()
+    """Run a small HTTP shim for local integration & tests."""
+    s = get_settings()
+    os.environ.setdefault("UVICORN_WORKERS", "1")
+    uvicorn.run(http_app, host=host, port=port, reload=reload, log_level=s.log_level.lower())
+
+def run():
+    cli()
+
+# `integritas-mcp` entrypoint -> run()
