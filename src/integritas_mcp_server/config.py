@@ -2,11 +2,13 @@
 
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
     minima_api_base: str  # e.g., https://api.minima.example
     minima_api_key: str | None = None
+    minima_api_health: str | None = Field(None, alias="MINIMA_API_HEALTH")  # <- add this
     request_timeout_seconds: float = 15.0
     max_retries: int = 3
     log_level: str = "INFO"

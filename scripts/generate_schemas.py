@@ -1,3 +1,5 @@
+# scripts\generate_schemas.py
+
 from __future__ import annotations
 import json, pathlib
 from integritas_mcp_server.models import StampRequest, StampResponse

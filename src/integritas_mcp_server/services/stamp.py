@@ -24,20 +24,25 @@ def _parse_payload(payload: Dict[str, Any]) -> StampResponse:
     # 2) { "uid": "...", "tx_id": "...", "stamped_at": "..." }
     inner = payload.get("data") if isinstance(payload.get("data"), dict) else payload
 
-    uid = _pick(inner, "uid") or _pick(payload, "uid", "id") or ""
-    tx_id = _pick(inner, "tx_id", "txid") or _pick(payload, "tx_id", "txid")
+    uid = _pick(inner, "uid")
+
     stamped_at = (
-        _pick(payload, "timestamp", "stamped_at", "created_at")
-        or _pick(inner, "timestamp", "stamped_at")
+        _pick(payload, "timestamp")
     )
+    
     summary = payload.get("message") or (f"Stamp accepted (uid={uid})" if uid else "Stamp accepted")
 
-    return StampResponse(uid=uid, tx_id=tx_id, stamped_at=stamped_at, summary=summary)
+    return StampResponse(uid=uid, stamped_at=stamped_at, summary=summary)
 
-async def stamp(hash_hex: str, request_id: Optional[str] = None) -> StampResponse:
+async def stamp(hash_hex: str, request_id: Optional[str] = None, api_key: str | None = None) -> StampResponse:
     s = get_settings()
     headers = {"x-request-id": request_id or "integritas-mcp", "content-type": "application/json"}
-    if s.minima_api_key:
+    # if s.minima_api_key:
+    #     headers["x-api-key"] = s.minima_api_key
+    # Prefer per-request key from tool args; else fall back to env
+    if api_key is not None and isinstance(api_key, str):
+        headers["x-api-key"] = api_key
+    elif s.minima_api_key:
         headers["x-api-key"] = s.minima_api_key
 
     r = await post_json(PATH_STAMP, json={"hash": hash_hex}, headers=headers)

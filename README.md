@@ -23,5 +23,3 @@ pytest -q
 python scripts/generate_schemas.py
 
 ### Hash request
-
-{"hash":"4f481c90915e8a96fd8426e541d83dc547b573dd7a83fb2f4dcb4a77e5234998"}

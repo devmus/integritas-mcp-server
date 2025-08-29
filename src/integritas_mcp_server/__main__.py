@@ -1,7 +1,7 @@
 # src/integritas_mcp_server/__main__.py
 
 import argparse, asyncio, sys
-from .services.health import check_health
+from integritas_mcp_server.services.self_health import self_health
 
 def main():
     p = argparse.ArgumentParser()
@@ -10,13 +10,14 @@ def main():
     args = p.parse_args()
 
     if args.health:
-        res = asyncio.run(check_health("integritas-cli-health"))
-        print(res.model_dump_json(indent=2))
+        res = asyncio.run(self_health("integritas-cli-health"))
+        print(res.model_dump_json(indent=2))  # if you keep this, redirect to stderr in stdio mode
         sys.exit(0 if res.status == "ok" and res.upstream_reachable else 1)
 
     if args.stdio:
-        from .server import serve_stdio
-        asyncio.run(serve_stdio())
+        # ⬇️ call the FastMCP instance directly (no serve_stdio import)
+        from .server import mcp
+        asyncio.run(mcp.run())
     else:
         p.print_help()
 

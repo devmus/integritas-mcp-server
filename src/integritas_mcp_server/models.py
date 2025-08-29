@@ -1,6 +1,7 @@
 # src/integritas_mcp_server/models.py
 
 from __future__ import annotations
+# from pydantic import BaseModel, Field, field_validator
 from pydantic import BaseModel, Field, field_validator
 import base64, re
 from typing import Literal, Optional
@@ -25,6 +26,10 @@ def normalize_hash(value: str) -> str:
 
 class StampRequest(BaseModel):
     hash: str = Field(..., description="Hex (with/without 0x) or base64; will be normalized to hex.")
+    api_key: str | None = Field(
+        default=None,
+        description="Per-request API key for upstream stamping API (overrides env key if provided).",
+        )
 
     @field_validator("hash")
     @classmethod
