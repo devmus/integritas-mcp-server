@@ -4,7 +4,7 @@ from fastapi import FastAPI, Header, Request, HTTPException, APIRouter
 from .models import StampRequest, StampResponse, StampStatusRequest, StampStatusResponse
 from .errors import MCPServerError
 from .services.stamp import stamp as stamp_service
-from .services.stamp_status import perform_stamp_status
+from .services.stamp_status import get_definitive_stamp_status
 from integritas_mcp_server.services.health import check_readiness
 from integritas_mcp_server.services.self_health import self_health
 from .models import HealthResponse
@@ -50,7 +50,7 @@ async def stamp_status(
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
     try:
-        results = await perform_stamp_status(req, x_request_id, x_api_key)
+        results = await get_definitive_stamp_status(req, x_request_id, x_api_key)
         return StampStatusResponse(
             requestId=x_request_id or "unknown",
             data=results,

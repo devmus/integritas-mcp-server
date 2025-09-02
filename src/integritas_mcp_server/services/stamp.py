@@ -19,10 +19,16 @@ def _pick(d: Dict[str, Any], *keys: str):
     return None
 
 def _parse_payload(payload: Dict[str, Any]) -> StampResponse:
-    # Support both shapes:
-    # 1) { "message": "...", "timestamp": "...", "data": { "uid": "...", "tx_id": "..." } }
-    # 2) { "uid": "...", "tx_id": "...", "stamped_at": "..." }
-    inner = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    # Ensure 'inner' is always a Dict[str, Any]
+    inner: Dict[str, Any]
+    data_from_payload = payload.get("data")
+
+    if isinstance(data_from_payload, dict):
+        inner = data_from_payload
+    else:
+        # If 'data' is not a dict, or not present, use the top-level payload
+        # We assume payload itself is a dict due to r.json()
+        inner = payload
 
     uid = _pick(inner, "uid")
 

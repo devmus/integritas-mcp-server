@@ -1,6 +1,7 @@
 # # src/integritas_mcp_server/services/health.py
 import time
 import httpx
+from typing import Literal # Import Literal
 from ..config import get_settings
 from ..models import HealthResponse
 import structlog
@@ -21,19 +22,25 @@ async def check_readiness(x_request_id: str | None = None, api_key: str | None =
     url = s.minima_api_health
     start = time.perf_counter()
 
-    status = "ok"
+    # Explicitly type status
+    status: Literal["ok", "degraded", "down"] = "ok"
     summary = "Ready"
     reachable = True
     code: int | None = None
 
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(url, headers=headers)
-            log.debug("Actual request headers", headers=dict(r.request.headers))
-            code = r.status_code
-            if r.status_code >= 300:
-                status = "degraded"
-                summary = f"Upstream returned {r.status_code}"
+        if url is None: # Handle None URL case
+            reachable = False
+            status = "down"
+            summary = "Upstream health URL not configured"
+        else:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(url, headers=headers)
+                log.debug("Actual request headers", headers=dict(r.request.headers))
+                code = r.status_code
+                if r.status_code >= 300:
+                    status = "degraded"
+                    summary = f"Upstream returned {r.status_code}"
     except Exception as e:
         reachable = False
         status = "down"
