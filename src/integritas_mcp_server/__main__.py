@@ -1,6 +1,8 @@
 # src/integritas_mcp_server/__main__.py
 
-import argparse, asyncio, sys
+import argparse
+import asyncio
+import sys
 from integritas_mcp_server.services.self_health import self_health
 
 def main():

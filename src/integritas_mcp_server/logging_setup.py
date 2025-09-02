@@ -1,4 +1,6 @@
-import logging, sys, structlog
+import logging
+import sys
+import structlog
 from .config import get_settings
 
 def setup_logging():

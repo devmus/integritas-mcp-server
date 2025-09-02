@@ -1,7 +1,8 @@
 # src/integritas_mcp_server/http_client.py
 from __future__ import annotations
-import asyncio, httpx, time, uuid
+import asyncio
 import httpx
+import uuid
 import structlog
 from typing import Any
 from .config import get_settings

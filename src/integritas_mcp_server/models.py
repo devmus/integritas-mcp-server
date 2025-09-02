@@ -3,8 +3,9 @@
 from __future__ import annotations
 # from pydantic import BaseModel, Field, field_validator
 from pydantic import BaseModel, Field, field_validator
-import base64, re
-from typing import Literal, Optional
+import base64
+import re
+from typing import Literal, Optional, Union
 from datetime import datetime, timezone
 
 HEX_RE = re.compile(r"^(0x)?[0-9a-fA-F]+$")
@@ -40,6 +41,52 @@ class StampResponse(BaseModel):
     uid: str = Field(..., description="Server-side UID correlating to the stamp operation.")
     stamped_at: str | None = Field(None, description="ISO-8601 UTC timestamp when accepted.")
     summary: str = Field(..., description="Human-readable summary of the result.")
+
+
+class StampStatusRequest(BaseModel):
+    uids: list[str] = Field(..., description="A list of UIDs to check the status of.")
+
+
+class StampStatusResultError(BaseModel):
+    status: Literal[False] = False
+    uid: str
+    error: str
+
+
+class StampStatusResultPending(BaseModel):
+    status: Literal[True] = True
+    uid: str
+    data: str
+    number: int
+    datecreated: str
+    onchain: Literal[False] = False
+
+
+class StampStatusResultSuccess(BaseModel):
+    status: Literal[True] = True
+    uid: str
+    data: str
+    number: int
+    datecreated: str
+    datestamped: str
+    root: str
+    proof: str
+    address: str
+    onchain: Literal[True] = True
+
+
+StampStatusResult = Union[StampStatusResultSuccess, StampStatusResultPending, StampStatusResultError]
+
+
+class StampStatusResponse(BaseModel):
+    apiVersion: int = 1
+    requestId: str
+    status: str = "success"
+    statusCode: int = 200
+    message: str = "UID statuses fetched"
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    data: list[StampStatusResult]
+
 
 class HealthResponse(BaseModel):
     status: Literal["ok", "degraded", "down"] = "ok"

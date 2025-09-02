@@ -1,7 +1,8 @@
 # src\integritas_mcp_server\services\self_health.py
 
 from __future__ import annotations
-import os, time
+import os
+import time
 from pydantic import BaseModel
 
 _PROCESS_START = time.time()

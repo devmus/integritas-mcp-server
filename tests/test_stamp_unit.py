@@ -9,7 +9,7 @@ from integritas_mcp_server.models import StampRequest
 @respx.mock
 async def test_stamp_success():
     respx.post("https://upstream.example/v1/timestamp/post").mock(
-        return_value=httpx.Response(200, json={"uid":"u123","tx_id":"t456","stamped_at":"2025-08-26T10:00:00Z"})
+        return_value=httpx.Response(200, json={"uid":"u123","stamped_at":"2025-08-26T10:00:00Z"})
     )
     resp = await stamp_hash(StampRequest(hash="aabb"))
     assert resp.uid == "u123"
@@ -24,3 +24,14 @@ async def test_upstream_400_maps_to_invalid():
     with pytest.raises(Exception) as ei:
         await stamp_hash(StampRequest(hash="zz=="))  # invalid base64 → model normalizes, but upstream rejects
     assert "bad hash" in str(ei.value)
+
+
+@pytest.mark.anyio("asyncio")
+@respx.mock
+async def test_upstream_500_maps_to_unavailable():
+    respx.post("https://upstream.example/v1/timestamp/post").mock(
+        return_value=httpx.Response(500, text="internal error")
+    )
+    with pytest.raises(Exception) as ei:
+        await stamp_hash(StampRequest(hash="aabb"))
+    assert "internal error" in str(ei.value)

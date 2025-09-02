@@ -4,7 +4,7 @@ from typing import Optional, Any, Dict
 import structlog
 from ..config import get_settings
 from ..http_client import post_json
-from ..errors import map_status_to_error, MCPServerError
+from ..errors import map_status_to_error
 from ..models import StampResponse
 
 log = structlog.get_logger()

@@ -1,6 +1,7 @@
 # src/integritas_mcp_server/server.py
 from __future__ import annotations
-import sys, structlog
+import sys
+import structlog
 structlog.configure(
     logger_factory=structlog.PrintLoggerFactory(file=sys.stderr)  # force stderr
 )
