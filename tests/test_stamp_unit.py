@@ -2,7 +2,7 @@
 import respx
 import httpx
 import pytest
-from integritas_mcp_server.server import stamp_hash
+from integritas_mcp_server.stdio_app import stamp_hash
 from integritas_mcp_server.models import StampRequest
 
 @pytest.mark.anyio("asyncio")

@@ -45,6 +45,10 @@ class StampResponse(BaseModel):
 
 class StampStatusRequest(BaseModel):
     uids: list[str] = Field(..., description="A list of UIDs to check the status of.")
+    api_key: str | None = Field(
+        default=None,
+        description="Per-request API key for upstream stamping API (overrides env key if provided).",
+    )
 
 
 class StampStatusResultError(BaseModel):

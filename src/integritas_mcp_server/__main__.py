@@ -18,7 +18,7 @@ def main():
 
     if args.stdio:
         # ⬇️ call the FastMCP instance directly (no serve_stdio import)
-        from .server import mcp
+        from .stdio_app import mcp
         asyncio.run(mcp.run())
     else:
         p.print_help()

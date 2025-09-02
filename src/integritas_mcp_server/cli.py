@@ -4,7 +4,7 @@ import asyncio
 import os
 import typer
 import uvicorn
-from .server import mcp                 # ⬅️ import the FastMCP instance
+from .stdio_app import mcp                 # ⬅️ import the FastMCP instance
 from .http_app import app as http_app
 from .config import get_settings
 from .logging_setup import setup_logging
