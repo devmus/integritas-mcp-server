@@ -22,4 +22,22 @@ pytest -q
 
 python scripts/generate_schemas.py
 
-### Hash request
+### Tools
+
+- Stamp
+
+0. Upload file
+1. Hash file
+2. Core API /post-lite
+3. Core API /status
+4. Return json proof
+5. Core API /timestamp/file
+6. Return json proof as file
+
+- Verify
+
+0. Upload proof file
+1. Core API /verify-lite
+2. Return verification result as json
+3. Core API /verify/file
+4. Return verification result as .pdf
