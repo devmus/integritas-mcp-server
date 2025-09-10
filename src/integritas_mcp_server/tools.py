@@ -8,10 +8,9 @@ from .models import (
     StampDataRequest, StampDataResponse,
     VerifyDataRequest, VerifyDataResponse,
 )
-from .services.stamp import stamp as stamp_service
-from .services.stamp_status import get_definitive_stamp_status
+
 from .services.stamp_data import stamp_data_complete
-from .services.verify_data import verify_data_complete
+# from .services.verify_data import verify_data_complete
 from .services.self_health import self_health
 from .services.health import check_readiness
 from .tool_descriptions import (

@@ -4,7 +4,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 import base64
 import re
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 
