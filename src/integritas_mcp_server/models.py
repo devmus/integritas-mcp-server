@@ -51,13 +51,14 @@ class StampDataRequest(BaseModel):
     """Request to stamp a file on the blockchain."""
     file_path: Optional[str] = Field(None, description="Path to the file to be stamped. Will be uploaded as multipart/form-data.")
     file_url: Optional[HttpUrl] = Field(None, description="Presigned URL to download the file.")
+    file_hash: Optional[str] = Field(None, description="File hash.")
     api_key: Optional[str] = Field(None, description="Integritas API key (optional, may also be set globally).")
 
-    @model_validator(mode="after")
-    def ensure_source(self):
-        if not self.file_path and not self.file_url:
-            raise ValueError("Either file_path or file_url is required.")
-        return self
+    # @model_validator(mode="after")
+    # def ensure_source(self):
+    #     if not self.file_path and not self.file_url:
+    #         raise ValueError("Either file_path or file_url is required.")
+    #     return self
 
 class StampDataResponse(BaseModel):
     """Response containing results of a completed stamp request."""
@@ -74,11 +75,11 @@ class VerifyDataRequest(BaseModel):
     file_url: Optional[HttpUrl] = Field(None, description="Presigned URL to download the file.")
     api_key: Optional[str] = Field(None, description="Integritas API key (optional, may also be set globally).")
 
-    @model_validator(mode="after")
-    def ensure_source(self):
-        if not self.file_path and not self.file_url:
-            raise ValueError("Either file_path or file_url is required.")
-        return self
+    # @model_validator(mode="after")
+    # def ensure_source(self):
+    #     if not self.file_path and not self.file_url:
+    #         raise ValueError("Either file_path or file_url is required.")
+    #     return self
 
 class VerifyDataResponse(BaseModel):
     """Response containing results of a completed verification request."""

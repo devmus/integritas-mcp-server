@@ -2,9 +2,12 @@
 import aiohttp
 from typing import Any, Dict, Optional
 from ...config import get_settings
+import re
 
 s = get_settings()
 API_BASE_URL = s.minima_api_base.rstrip("/")
+
+_HEX_RE = re.compile(r"^(0x)?[0-9a-fA-F]+$")
 
 def build_headers(possible_secret: Optional[Any], fallback: Optional[str]) -> Dict[str, str]:
     """
@@ -28,6 +31,34 @@ def build_headers(possible_secret: Optional[Any], fallback: Optional[str]) -> Di
         key = fallback
 
     return {"x-api-key": key} if key else {}
+
+def normalize_hash(h: str) -> str:
+    """
+    - Strip 0x prefix if present
+    - Lowercase only if it's hex; leave non-hex (e.g., base64) untouched
+    """
+    s = h.strip()
+    if s.startswith(("0x", "0X")):
+        s = s[2:]
+    if _HEX_RE.fullmatch(s):
+        return s.lower()
+    return s
+
+async def post_json(
+    session: aiohttp.ClientSession,
+    url: str,
+    payload: Dict[str, Any],
+    headers: Dict[str, str],
+):
+    """
+    Posts JSON; returns JSON payload dict or error string.
+    """
+    merged = {"Content-Type": "application/json", **headers}
+    async with session.post(url, json=payload, headers=merged) as resp:
+        if resp.status < 200 or resp.status >= 300:
+            text = await resp.text()
+            return f"API error {resp.status}: {text}"
+        return await resp.json()
 
 async def post_multipart(
     session: aiohttp.ClientSession,

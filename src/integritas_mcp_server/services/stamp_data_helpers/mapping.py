@@ -22,7 +22,7 @@ def map_payload_to_response(payload: Dict[str, Any], fallback_request_id: Option
     mapped_status = map_status(payload.get("status"))
     uid = forwarded.get("uid")
     stamped_at = parse_iso_utc(payload.get("timestamp"))
-    proof_url_raw = proof_file.get("downloadUrl")
+    proof_url_raw = proof_file.get("download_url")
 
     parts = []
     if mapped_status: parts.append(f"Status: {mapped_status}")

@@ -1,7 +1,7 @@
 # services/stamp_data.py
 from typing import Optional
 from ..models import StampDataRequest, StampDataResponse
-from .stamp_data_helpers.api import API_BASE_URL, build_headers, post_multipart
+from .stamp_data_helpers.api import API_BASE_URL, build_headers, post_multipart, post_json, normalize_hash
 from .stamp_data_helpers.upload import form_from_file_path, form_from_file_url
 from .stamp_data_helpers.mapping import map_payload_to_response
 
@@ -13,11 +13,12 @@ async def stamp_data_complete(
     api_key: Optional[str] = None,
 ) -> StampDataResponse:
     """
-    Prefer URL upload if present; otherwise use local file path.
+    If file_hash is provided, send JSON.
+    Else prefer URL upload; otherwise use local file path (multipart).
     Returns a validated StampDataResponse.
     """
     # quick input guard (the model should already enforce one-of)
-    if not (req.file_url or req.file_path):
+    if not (req.file_url or req.file_path or req.file_hash):
         return StampDataResponse(
             requestId=request_id or "unknown",
             status="failed",
@@ -29,8 +30,18 @@ async def stamp_data_complete(
 
     async with aiohttp.ClientSession() as session:
         try:
-            if req.file_url:
+            # --- HASH PATH (JSON) ---
+            if req.file_hash:
+                h = normalize_hash(str(req.file_hash))
+                payload = {"hash": h}
+                payload_or_err = await post_json(session, endpoint, payload, headers)
+
+            # --- URL PATH (multipart) ---
+            elif req.file_url:
                 form = await form_from_file_url(session, str(req.file_url))
+                payload_or_err = await post_multipart(session, endpoint, form, headers)
+            
+            # --- LOCAL FILE PATH (multipart) ---
             else:
                 ok, form_or_err = form_from_file_path(req.file_path)
                 if not ok:
@@ -40,8 +51,8 @@ async def stamp_data_complete(
                         summary=form_or_err,  # error message
                     )
                 form = form_or_err
+                payload_or_err = await post_multipart(session, endpoint, form, headers)
 
-            payload_or_err = await post_multipart(session, endpoint, form, headers)
             if isinstance(payload_or_err, str):
                 return StampDataResponse(
                     requestId=request_id or "unknown",

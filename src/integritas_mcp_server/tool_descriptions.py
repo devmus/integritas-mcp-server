@@ -7,11 +7,12 @@ READY_DESCRIPTION = """
 """
 
 STAMP_DATA_DESCRIPTION = """
-Stamp a file on the Minima blockchain via Integritas one-shot API.
+Stamp a file or a hash on the Minima blockchain via Integritas one-shot API.
 
 Input:
   - file_url: Presigned URL (recommended)
   - file_path: Server-accessible local path
+  - file_hash: sha3-256 hash of the file
 Output:
   - status, uid, stamped_at, proof_url, summary
 """
