@@ -8,10 +8,10 @@ log = get_logger()
 
 def _safe_json(v: Any, limit: int = 2000) -> Any:
     try:
-        s = json.dumps(v, default=str)
-        return (s[:limit] + "…") if len(s) > limit else s
+        s = json.dumps(v, default=str)  # ensure_ascii defaults to True
+        return (s[:limit] + "...") if len(s) > limit else s
     except Exception:
-        return str(v)[:limit] + "…"
+        return (str(v)[:limit] + "...")
 
 def tool_logger(fn: Callable):
     """Decorator to log tool start/success/error with req_id correlation."""

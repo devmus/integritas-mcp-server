@@ -4,6 +4,8 @@ Liveness: quick, in-process check (no network).
 """
 
 READY_DESCRIPTION = """
+Readiness probe: checks downstream Integritas API reachability and auth.
+Accepts optional api_key to test authenticated calls.
 """
 
 STAMP_DATA_DESCRIPTION = """
@@ -18,11 +20,12 @@ Output:
 """
 
 VERIFY_DATA_DESCRIPTION = """
-Verifies data on the Minima blockchain via Integritas one-shot API using a provided proof file .
+Verify a proof file against the Minima blockchain via Integritas one-shot API.
 
-Input:
+Input (choose one):
   - file_url: Presigned URL (recommended)
   - file_path: Server-accessible local path
+
 Output:
   - result, block_number, nfttxnid, txpow_id, transactionid, matched_hash, verification_url, summary
 """

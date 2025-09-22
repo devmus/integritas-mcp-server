@@ -75,23 +75,18 @@ class VerifyDataRequest(BaseModel):
     file_url: Optional[HttpUrl] = Field(None, description="Presigned URL to download the file.")
     api_key: Optional[str] = Field(None, description="Integritas API key (optional, may also be set globally).")
 
-    # @model_validator(mode="after")
-    # def ensure_source(self):
-    #     if not self.file_path and not self.file_url:
-    #         raise ValueError("Either file_path or file_url is required.")
-    #     return self
-
 class VerifyDataResponse(BaseModel):
     """Response containing results of a completed verification request."""
     requestId: str = Field(..., description="MCP request id, for tracing/debugging.")
     result: str = Field(..., description="Result of the verification: full match, partial match, or no match.")
-    block_number: Optional[str] = Field(None, description="The block number of the block that the hash was mined in.")
-    txpow_id: Optional[HttpUrl] = Field(None, description="The txpow of the block.")
-    transactionid: Optional[HttpUrl] = Field(None, description="The txpow of the transaction that created the coin.")
-    matched_hash: Optional[HttpUrl] = Field(None, description="The matching hash that is found in the proof file and the coin.")
-    nfttxnid: Optional[datetime] = Field(None, description="The txpow of the NFT that was minted as proof of verification")
-    verification_url: Optional[HttpUrl] = Field(None, description="Link to the downloadable verification file.")
+    block_number: Optional[int] = Field(None, description="Block number containing the matched transaction.")
+    txpow_id: Optional[str] = Field(None, description="TxPoW id that contains the data.")
+    transactionid: Optional[str] = Field(None, description="Transaction id that created the coin.")
+    matched_hash: Optional[str] = Field(None, description="The hash found in both the proof file and the coin.")
+    nfttxnid: Optional[str] = Field(None, description="Tx id of the NFT minted as verification proof.")
+    verification_url: Optional[HttpUrl] = Field(None, description="Link to the generated verification PDF/report.")
     summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
+
 
 
 # class StampResponse(BaseModel):

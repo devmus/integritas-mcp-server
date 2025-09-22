@@ -60,34 +60,56 @@ async def post_json(
             return f"API error {resp.status}: {text}"
         return await resp.json()
 
+# async def post_multipart(
+#     session: aiohttp.ClientSession,
+#     url: str,
+#     form: aiohttp.FormData,
+#     headers: Dict[str, str],
+# ):
+#     """
+#     Posts multipart form; returns JSON payload dict or error string.
+#     Tries to close any file-like objects attached to the form.
+#     """
+#     try:
+#         async with session.post(url, data=form, headers=headers) as resp:
+#             if resp.status < 200 or resp.status >= 300:
+#                 text = await resp.text()
+#                 return f"API error {resp.status}: {text}"
+#             return await resp.json()
+#     finally:
+#         # Best-effort close of file-like values
+#         try:
+#             fields = getattr(form, "_fields", None)
+#             if fields:
+#                 for field in fields:
+#                     val = getattr(field, "value", None)
+#                     close = getattr(val, "close", None)
+#                     if callable(close):
+#                         try:
+#                             close()
+#                         except Exception:
+#                             pass
+#         except Exception:
+#             pass
+
+# src/integritas_mcp_server/services/stamp_data_helpers/api.py
+import aiohttp
+from typing import Dict, Union, Any
+
 async def post_multipart(
     session: aiohttp.ClientSession,
     url: str,
     form: aiohttp.FormData,
     headers: Dict[str, str],
-):
-    """
-    Posts multipart form; returns JSON payload dict or error string.
-    Tries to close any file-like objects attached to the form.
-    """
+) -> Union[Dict[str, Any], str]:
     try:
+        # ✅ Always pass the FormData; do NOT write "form or False"
         async with session.post(url, data=form, headers=headers) as resp:
-            if resp.status < 200 or resp.status >= 300:
-                text = await resp.text()
-                return f"API error {resp.status}: {text}"
-            return await resp.json()
-    finally:
-        # Best-effort close of file-like values
-        try:
-            fields = getattr(form, "_fields", None)
-            if fields:
-                for field in fields:
-                    val = getattr(field, "value", None)
-                    close = getattr(val, "close", None)
-                    if callable(close):
-                        try:
-                            close()
-                        except Exception:
-                            pass
-        except Exception:
-            pass
+            text = await resp.text()
+            try:
+                return await resp.json()
+            except Exception:
+                # return text so caller can surface upstream error body
+                return text
+    except Exception as e:
+        return f"{type(e).__name__}: {e}"
