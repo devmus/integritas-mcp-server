@@ -4,9 +4,21 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 import base64
 import re
-from typing import Literal, Optional
+from typing import Optional, Literal, Dict, Any
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, HttpUrl, model_validator
+
+VerifyErrorCode = Literal[
+    "PROOF_URL_404",
+    "PROOF_URL_UNREACHABLE",
+    "PROOF_TIMEOUT",
+    "PROOF_BAD_JSON",
+    "CHAIN_NOT_FOUND",
+    "CHAIN_UNREACHABLE",
+    "CHAIN_TIMEOUT",
+    "UNEXPECTED_STATUS",
+    "UNKNOWN",
+]
 
 HEX_RE = re.compile(r"^(0x)?[0-9a-fA-F]+$")
 
@@ -69,6 +81,11 @@ class StampDataResponse(BaseModel):
     proof_url: Optional[HttpUrl] = Field(None, description="Link to the downloadable proof file.")
     summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
 
+class VerifyError(BaseModel):
+    code: VerifyErrorCode
+    message: str
+    context: Optional[Dict[str, Any]] = None
+
 class VerifyDataRequest(BaseModel):
     """Request to stamp a file on the blockchain."""
     file_path: Optional[str] = Field(None, description="Path to the file to be stamped. Will be uploaded as multipart/form-data.")
@@ -86,6 +103,7 @@ class VerifyDataResponse(BaseModel):
     nfttxnid: Optional[str] = Field(None, description="Tx id of the NFT minted as verification proof.")
     verification_url: Optional[HttpUrl] = Field(None, description="Link to the generated verification PDF/report.")
     summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
+    error: Optional[VerifyError] = None  # <- structured error
 
 
 
