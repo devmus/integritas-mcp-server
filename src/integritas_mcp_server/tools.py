@@ -49,7 +49,7 @@ def register_tools() -> None:
     stamp_data.__doc__ = STAMP_DATA_DESCRIPTION
 
     @tool_logger
-    @mcp.tool(name="verify_data_with_proof")
+    @mcp.tool(name="verify_data")
     async def verify_data(req: VerifyDataRequest, ctx: Optional[Context] = None) -> VerifyDataResponse:
         req_id = getattr(ctx, "request_id", None) if ctx else None
         return await verify_data_complete(req, req_id, api_key=req.api_key)
