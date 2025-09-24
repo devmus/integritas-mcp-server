@@ -4,9 +4,9 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 import base64
 import re
-from typing import Optional, Literal, Dict, Any
+from typing import Optional, Literal, Dict, Any, List
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, HttpUrl, model_validator
+from pydantic import BaseModel, Field, HttpUrl, model_validator, AnyUrl
 
 VerifyErrorCode = Literal[
     "PROOF_URL_404",
@@ -59,6 +59,25 @@ class HealthResponse(BaseModel):
     upstream_latency_ms: Optional[int] = None
     summary: str = "Healthy"
 
+class ToolLink(BaseModel):
+    rel: str                                  # e.g. "proof", "verification", "download"
+    href: AnyUrl
+    label: Optional[str] = None
+
+class ToolResultEnvelopeV1(BaseModel):
+    kind: str = Field(..., example="integritas/verify_result@v1")
+    status: Optional[str] = Field(None, example="finalized")  # "finalized" | "pending" | "failed" | "unknown"
+    summary: Optional[str] = None
+    ids: Optional[Dict[str, str]] = None                      # e.g. {"tx_id": "...", "uid": "..."}
+    timestamps: Optional[Dict[str, str]] = None               # ISO-8601 UTC
+    links: Optional[List[ToolLink]] = None                    # renderable anchors
+    data: Optional[Any] = None                                # raw domain payload
+    error: Optional[Dict[str, Any]] = None                    # {code, message, details}
+    schemaURI: Optional[str] = Field(None, alias="$schema")     # schema URI if you want
+
+    class Config:
+        populate_by_name = True
+
 class StampDataRequest(BaseModel):
     """Request to stamp a file on the blockchain."""
     file_path: Optional[str] = Field(None, description="Path to the file to be stamped. Will be uploaded as multipart/form-data.")
@@ -74,12 +93,21 @@ class StampDataRequest(BaseModel):
 
 class StampDataResponse(BaseModel):
     """Response containing results of a completed stamp request."""
-    requestId: str = Field(..., description="MCP request id, for tracing/debugging.")
-    status: str = Field(..., description="Status of the stamp request: pending, finalized, or failed.")
-    uid: Optional[str] = Field(None, description="Unique identifier of the stamp request in the backend.")
-    stamped_at: Optional[datetime] = Field(None, description="UTC timestamp when stamp was finalized.")
-    proof_url: Optional[HttpUrl] = Field(None, description="Link to the downloadable proof file.")
-    summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
+    # requestId: str = Field(..., description="MCP request id, for tracing/debugging.")
+    # status: str = Field(..., description="Status of the stamp request: pending, finalized, or failed.")
+    # uid: Optional[str] = Field(None, description="Unique identifier of the stamp request in the backend.")
+    # stamped_at: Optional[datetime] = Field(None, description="UTC timestamp when stamp was finalized.")
+    # proof_url: Optional[HttpUrl] = Field(None, description="Link to the downloadable proof file.")
+    # summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
+    requestId: str
+    summary: Optional[str] = None
+    structuredContent: Optional[ToolResultEnvelopeV1] = None
+
+    # --- legacy (optional for transition/back-compat) ---
+    status: Optional[str] = None
+    uid: Optional[str] = None
+    stamped_at: Optional[datetime] = None
+    proof_url: Optional[AnyUrl] = None
 
 class VerifyError(BaseModel):
     code: VerifyErrorCode
@@ -94,16 +122,18 @@ class VerifyDataRequest(BaseModel):
 
 class VerifyDataResponse(BaseModel):
     """Response containing results of a completed verification request."""
-    requestId: str = Field(..., description="MCP request id, for tracing/debugging.")
-    result: str = Field(..., description="Result of the verification: full match, partial match, or no match.")
-    block_number: Optional[int] = Field(None, description="Block number containing the matched transaction.")
-    txpow_id: Optional[str] = Field(None, description="TxPoW id that contains the data.")
-    transactionid: Optional[str] = Field(None, description="Transaction id that created the coin.")
-    matched_hash: Optional[str] = Field(None, description="The hash found in both the proof file and the coin.")
-    nfttxnid: Optional[str] = Field(None, description="Tx id of the NFT minted as verification proof.")
-    verification_url: Optional[HttpUrl] = Field(None, description="Link to the generated verification PDF/report.")
-    summary: Optional[str] = Field(None, description="Human-readable summary of the operation.")
-    error: Optional[VerifyError] = None  # <- structured error
+    requestId: str
+    summary: Optional[str] = None
+    structuredContent: Optional[ToolResultEnvelopeV1] = None
+
+    # --- legacy fields now OPTIONAL (kept for transition/back-compat) ---
+    result: Optional[str] = None
+    block_number: Optional[int] = None
+    txpow_id: Optional[str] = None
+    transactionid: Optional[str] = None
+    matched_hash: Optional[str] = None
+    nfttxnid: Optional[str] = None
+    verification_url: Optional[AnyUrl] = None
 
 
 

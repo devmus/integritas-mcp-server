@@ -1,13 +1,11 @@
 # src/integritas_mcp_server/services/verify_data.py
 from __future__ import annotations
-
 from typing import Optional
-import asyncio
 from urllib.parse import urlsplit
-
+from datetime import datetime, timezone
 import aiohttp
 
-from ..models import VerifyDataRequest, VerifyDataResponse
+from ..models import VerifyDataRequest, VerifyDataResponse, ToolResultEnvelopeV1, ToolLink
 from .tool_helpers.api import API_BASE_URL, build_headers, post_multipart
 from .tool_helpers.upload import (
     form_from_file_path,
@@ -19,6 +17,114 @@ from ..logging_setup import get_logger
 
 log = get_logger().bind(component="verify")
 
+# ---- small utils ----
+
+def utc_iso(dt: Optional[datetime] = None) -> str:
+    """ISO-8601 in UTC with Z suffix."""
+    return (dt or datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z")
+
+
+def verify_to_envelope(
+    *,
+    result: str,
+    block_number: Optional[int],
+    txpow_id: Optional[str],
+    transactionid: Optional[str],
+    matched_hash: Optional[str],
+    nfttxnid: Optional[str],
+    verification_url: Optional[str],
+    summary: str,
+) -> dict:
+    status = "finalized" if result in ("match", "finalized", "ok", "exists") else \
+             ("failed" if result in ("mismatch", "not_found", "error") else "unknown")
+
+    env = ToolResultEnvelopeV1(
+        kind="integritas/verify_result@v1",
+        status=status,
+        summary=summary,
+        ids={
+            **({"txpow_id": txpow_id} if txpow_id else {}),
+            **({"tx_id": transactionid} if transactionid else {}),
+            **({"uid": nfttxnid} if nfttxnid else {}),
+            **({"matched_hash": matched_hash} if matched_hash else {}),
+        } or None,
+        timestamps={
+            "verified_at": utc_iso(),
+            **({"block_number": str(block_number)} if block_number is not None else {}),
+        } or None,
+        links=(
+            [ToolLink(rel="verification", href=verification_url, label="View verification")]
+            if verification_url else None
+        ),
+        data={
+            "result": result,
+            "block_number": block_number,
+            "txpow_id": txpow_id,
+            "transactionid": transactionid,
+            "matched_hash": matched_hash,
+            "nfttxnid": nfttxnid,
+            "verification_url": verification_url,
+        },
+        **{"$schema": "https://integritas.dev/schemas/tool-result-v1.json"},
+    )
+
+    # MCP servers usually return { summary, structuredContent }
+    return {
+        "summary": summary,                           # plain text for transcript
+        "structuredContent": env.model_dump(by_alias=True, exclude_none=True),
+    }
+
+
+def _ok_response(
+    *,
+    request_id: str,
+    result: str,
+    block_number: Optional[int],
+    txpow_id: Optional[str],
+    transactionid: Optional[str],
+    matched_hash: Optional[str],
+    nfttxnid: Optional[str],
+    verification_url: Optional[str],
+    summary: str,
+) -> VerifyDataResponse:
+    pkg = verify_to_envelope(
+        result=result,
+        block_number=block_number,
+        txpow_id=txpow_id,
+        transactionid=transactionid,
+        matched_hash=matched_hash,
+        nfttxnid=nfttxnid,
+        verification_url=verification_url,
+        summary=summary,
+    )
+    return VerifyDataResponse(
+        requestId=request_id,
+        summary=pkg["summary"],
+        structuredContent=pkg["structuredContent"],
+    )
+
+def _fail_response(
+    *,
+    request_id: str,
+    summary: str,
+    verification_url: Optional[str] = None,
+) -> VerifyDataResponse:
+    # Minimal failed envelope (no chain ids)
+    pkg = verify_to_envelope(
+        result="error",
+        block_number=None,
+        txpow_id=None,
+        transactionid=None,
+        matched_hash=None,
+        nfttxnid=None,
+        verification_url=verification_url,
+        summary=summary,
+    )
+    return VerifyDataResponse(
+        requestId=request_id,
+        summary=pkg["summary"],
+        structuredContent=pkg["structuredContent"],
+    )
 
 async def verify_data_complete(
     req: VerifyDataRequest,
@@ -75,10 +181,10 @@ async def verify_data_complete(
                     host=host,
                     err=str(e),
                 )
-                return VerifyDataResponse(
-                    requestId=request_id or "unknown",
-                    result="error",
-                    summary="Verification failed due to a local/transport issue.",
+
+                return _fail_response(
+                request_id=request_id or "unknown",
+                summary="Verification failed due to a local/transport issue.",
                 )
 
             form, cleanup = normalize_form_result(built)
@@ -88,9 +194,8 @@ async def verify_data_complete(
                     req_id=request_id or "unknown",
                     form_type=str(type(form)),
                 )
-                return VerifyDataResponse(
-                    requestId=request_id or "unknown",
-                    result="error",
+                return _fail_response(
+                    request_id=request_id or "unknown",
                     summary="Verification failed due to a local/transport issue.",
                 )
 
@@ -104,9 +209,8 @@ async def verify_data_complete(
                     req_id=request_id or "unknown",
                     sample=payload[:200],
                 )
-                return VerifyDataResponse(
-                    requestId=request_id or "unknown",
-                    result="error",
+                return _fail_response(
+                    request_id=request_id or "unknown",
                     summary="Verification failed due to a local/transport issue.",
                 )
 
@@ -141,16 +245,10 @@ async def verify_data_complete(
                     status_code=status_code,
                     message=message,
                 )
-                return VerifyDataResponse(
-                    requestId=reqid,
-                    result="error",
-                    block_number=None,
-                    txpow_id=None,
-                    transactionid=None,
-                    matched_hash=None,
-                    nfttxnid=None,
-                    verification_url=(data.get("file") or {}).get("download_url"),
+                return _fail_response(
+                    request_id=reqid,
                     summary=human,
+                    verification_url=(data.get("file") or {}).get("download_url"),
                 )
 
             # ---- Success path (unchanged) ----
@@ -179,8 +277,8 @@ async def verify_data_complete(
                 has_link=bool(verification_url),
             )
 
-            return VerifyDataResponse(
-                requestId=reqid,
+            return _ok_response(
+                request_id=reqid,
                 result=result,
                 block_number=block_number,
                 txpow_id=txpow_id,
@@ -199,9 +297,8 @@ async def verify_data_complete(
                 endpoint=endpoint,
                 err=str(e),
             )
-            return VerifyDataResponse(
-                requestId=request_id or "unknown",
-                result="error",
+            return _fail_response(
+                request_id=request_id or "unknown",
                 summary="Verification failed due to a local/transport issue.",
             )
         finally:

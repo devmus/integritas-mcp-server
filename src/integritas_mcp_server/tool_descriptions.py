@@ -16,7 +16,14 @@ Input:
   - file_path: Server-accessible local path
   - file_hash: sha3-256 hash of the file
 Output:
-  - status, uid, stamped_at, proof_url, summary
+  - summary: Plain, human-readable summary.
+  - structuredContent (ToolResultEnvelopeV1):
+      kind: "integritas/stamp_result@v1"
+      status: "pending" | "finalized" | "failed" | "unknown"
+      ids: { uid? }
+      timestamps: { stamped_at? }
+      links: [{ rel: "proof", href: <url>, label?: "Download proof" }]
+      data: raw domain payload (may include status, uid, stamped_at, proof_url)
 """
 
 VERIFY_DATA_DESCRIPTION = """
@@ -27,7 +34,14 @@ Input (choose one):
   - file_path: Server-accessible local path
 
 Output:
-  - result, block_number, nfttxnid, txpow_id, transactionid, matched_hash, verification_url, summary
+  - summary: Plain, human-readable summary.
+  - structuredContent (ToolResultEnvelopeV1):
+      kind: "integritas/verify_result@v1"
+      status: "finalized" | "pending" | "failed" | "unknown"
+      ids: { tx_id?, txpow_id?, uid?, matched_hash? }
+      timestamps: { verified_at, block_number? }
+      links: [{ rel: "verification", href: <url>, label?: "View verification" }]
+      data: raw domain payload (may include result, block_number, etc.)
 """
 
 # STAMP_HASH_DESCRIPTION = """
