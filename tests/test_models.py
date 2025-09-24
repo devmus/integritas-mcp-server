@@ -1,4 +1,4 @@
-from integritas_mcp_server.models import normalize_hash
+from integritas_mcp_server.utils.hash import normalize_hash
 
 def test_normalize_hex():
     assert normalize_hash("0xAaBb") == "aabb"

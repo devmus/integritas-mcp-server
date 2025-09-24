@@ -32,18 +32,6 @@ def build_headers(possible_secret: Optional[Any], fallback: Optional[str]) -> Di
 
     return {"x-api-key": key} if key else {}
 
-def normalize_hash(h: str) -> str:
-    """
-    - Strip 0x prefix if present
-    - Lowercase only if it's hex; leave non-hex (e.g., base64) untouched
-    """
-    s = h.strip()
-    if s.startswith(("0x", "0X")):
-        s = s[2:]
-    if _HEX_RE.fullmatch(s):
-        return s.lower()
-    return s
-
 async def post_json(
     session: aiohttp.ClientSession,
     url: str,

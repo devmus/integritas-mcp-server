@@ -1,67 +1,82 @@
-# services/stamp_data.py
+# src/integritas_mcp_server/services/stamp_data.py
+from __future__ import annotations
 from typing import Optional, Any, Dict
-from datetime import datetime, timezone
+
 import aiohttp
 
-from ..models import StampDataRequest, StampDataResponse,ToolResultEnvelopeV1,ToolLink
+from ..models import StampDataRequest, StampDataResponse
+from .tool_helpers.api import API_BASE_URL, build_headers, post_multipart, post_json
+from .tool_helpers.upload import (
+    form_from_file_path,
+    form_from_file_url,
+    maybe_await,
+    normalize_form_result,
+)
+from ..utils.hash import normalize_hash
+from ..utils.time import utc_iso
+from .envelopes import build_stamp_envelope
+from ._shared_summary import normalize_status, compose_stamp_summary
 
-from .tool_helpers.api import API_BASE_URL, build_headers, post_multipart, post_json, normalize_hash
-from .tool_helpers.upload import (form_from_file_path, form_from_file_url, maybe_await, normalize_form_result)
-# from .stamp_data_helpers.mapping import map_payload_to_response
 
-# ---- small utils ----
+# ---- payload extraction -------------------------------------------------------
 
-def utc_iso(dt: Optional[datetime] = None) -> str:
-    """ISO-8601 in UTC with Z suffix."""
-    return (dt or datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z")
+def _extract_fields(resp: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """
+    Be liberal in what we accept. Support both flat and nested shapes.
+    We do NOT lift upstream 'message' into our summary; we compose our own.
+    """
+    data = resp or {}
+    status_raw = (data.get("status") or data.get("state") or "").lower()
+    uid = data.get("uid") or (data.get("data") or {}).get("uid")
+    stamped_at = data.get("stamped_at") or (data.get("data") or {}).get("stamped_at")
 
+    # Prefer top-level proof_url; else nested raw.data.proofFile.download_url
+    proof_url = (((data.get("data") or {}).get("proofFile") or {}).get("download_url"))
 
-def stamp_to_envelope(
-    *,
-    status: str,                       # "pending" | "finalized" | "failed" | unknown
-    uid: Optional[str],
-    stamped_at: Optional[str],
-    proof_url: Optional[str],
-    summary: str,
-    raw: Optional[Dict[str, Any]] = None,
-) -> dict:
-    env = ToolResultEnvelopeV1(
-        kind="integritas/stamp_result@v1",
-        status=(status or "unknown"),
-        summary=summary,
-        ids=({"uid": uid} if uid else None),
-        timestamps=({"stamped_at": stamped_at} if stamped_at else None),
-        links=([ToolLink(rel="proof", href=proof_url, label="Download proof")] if proof_url else None),
-        data={
-            "status": status,
-            "uid": uid,
-            "stamped_at": stamped_at,
-            "proof_url": proof_url,
-            "raw": raw or {},
-        },
-        **{"$schema": "https://integritas.dev/schemas/tool-result-v1.json"},
-    )
+    # Normalize stamped_at if it's a datetime
+    try:
+        from datetime import datetime as _dt
+        if isinstance(stamped_at, _dt):
+            stamped_at = utc_iso(stamped_at)
+    except Exception:
+        pass
+
     return {
-        "summary": summary,
-        "structuredContent": env.model_dump(by_alias=True, exclude_none=True),
+        "status": normalize_status(status_raw),  # normalized ("finalized"|"pending"|"failed"|"unknown")
+        "uid": uid,
+        "stamped_at": stamped_at,
+        "proof_url": proof_url,
+        "summary": None,  # force our own composer
     }
 
+
+# ---- response factories -------------------------------------------------------
 
 def _ok_response(
     *,
     request_id: str,
-    status: str,
-    uid: Optional[str],
-    stamped_at: Optional[str],
-    proof_url: Optional[str],
-    summary: str,
+    fields: Dict[str, Optional[str]],
     raw: Optional[Dict[str, Any]] = None,
+    summary_override: Optional[str] = None,
 ) -> StampDataResponse:
-    pkg = stamp_to_envelope(
-        status=status,
-        uid=uid,
-        stamped_at=stamped_at,
-        proof_url=proof_url,
+    """
+    Build the standard tool response using our envelope helper.
+    If summary_override is provided (e.g., upstream/human failure text),
+    we use it; otherwise we compose a rich summary from fields.
+    """
+    summary = summary_override or compose_stamp_summary(
+        {
+            "status": fields.get("status"),
+            "uid": fields.get("uid"),
+            "proof_url": fields.get("proof_url"),
+        }
+    )
+
+    pkg = build_stamp_envelope(
+        status=fields.get("status"),
+        uid=fields.get("uid"),
+        stamped_at=fields.get("stamped_at"),
+        proof_url=fields.get("proof_url"),
         summary=summary,
         raw=raw,
     )
@@ -75,130 +90,24 @@ def _ok_response(
 def _fail_response(
     *,
     request_id: str,
-    summary: str,
-    proof_url: Optional[str] = None,
+    human: str,
+    maybe_proof_url: Optional[str] = None,
     raw: Optional[Dict[str, Any]] = None,
 ) -> StampDataResponse:
-    pkg = stamp_to_envelope(
-        status="failed",
-        uid=None,
-        stamped_at=None,
-        proof_url=proof_url,
-        summary=summary,
-        raw=raw,
-    )
-    return StampDataResponse(
-        requestId=request_id,
-        summary=pkg["summary"],
-        structuredContent=pkg["structuredContent"],
-    )
-
-
-# ---- extraction helpers ----
-
-def _extract_fields(resp: Dict[str, Any]) -> Dict[str, Optional[str]]:
     """
-    Be liberal in what we accept. Support both flat and nested shapes.
-    Expected keys in the wild:
-      - status: "pending" | "finalized" | "failed"
-      - uid
-      - stamped_at (ISO)
-      - proof_url
-      - summary (optional)
+    Failure path: keep the human message intact (do not overwrite with a generic composer).
     """
-    data = resp or {}
-    status = (data.get("status") or data.get("state") or "").lower()
-    uid = data.get("uid") or (data.get("data") or {}).get("uid")
-    stamped_at = data.get("stamped_at") or (data.get("data") or {}).get("stamped_at")
-    proof_url = data.get("proof_url") or (data.get("data") or {}).get("proof_url")
-    summary = data.get("summary")
-
-    # Normalize stamped_at if it's a datetime
-    if isinstance(stamped_at, datetime):
-        stamped_at = utc_iso(stamped_at)
-
-    return {
-        "status": status or "unknown",
-        "uid": uid,
-        "stamped_at": stamped_at,
-        "proof_url": proof_url,
-        "summary": summary,
+    fields = {
+        "status": "failed",
+        "uid": None,
+        "stamped_at": None,
+        "proof_url": maybe_proof_url,
+        "summary": human,
     }
+    return _ok_response(request_id=request_id, fields=fields, raw=raw, summary_override=human)
 
 
-# # ---- main entrypoint ----
-
-
-# async def stamp_data_complete(
-#     req: StampDataRequest,
-#     request_id: Optional[str] = None,
-#     api_key: Optional[str] = None,
-# ) -> StampDataResponse:
-#     """
-#     If file_hash is provided, send JSON.
-#     Else prefer URL upload; otherwise use local file path (multipart).
-#     Returns a validated StampDataResponse.
-#     """
-#     if not (req.file_url or req.file_path or req.file_hash):
-#         return StampDataResponse(
-#             requestId=request_id or "unknown",
-#             status="failed",
-#             summary="Neither file_url, file_path, nor file_hash provided.",
-#         )
-
-#     headers = build_headers(req.api_key, api_key)
-#     endpoint = f"{API_BASE_URL}/v1/timestamp/one-shot"
-
-#     async with aiohttp.ClientSession() as session:
-#         cleanup = None
-#         try:
-#             # --- HASH PATH (JSON) ---
-#             if req.file_hash:
-#                 h = normalize_hash(str(req.file_hash))
-#                 resp = await post_json(session, endpoint, {"hash": h}, headers)
-#                 if isinstance(resp, str):
-#                     return StampDataResponse(
-#                         requestId=request_id or "unknown",
-#                         status="failed",
-#                         summary=resp,
-#                     )
-#                 return map_payload_to_response(resp, fallback_request_id=request_id)
-
-#             # --- MULTIPART PATH (URL or local file) ---
-#             if req.file_url:
-#                 built = await maybe_await(
-#                     form_from_file_url(session, str(req.file_url), "application/octet-stream")
-#                 )
-#             else:
-#                 built = await maybe_await(
-#                     form_from_file_path(req.file_path, "application/octet-stream")
-#                 )
-
-#             form, cleanup = normalize_form_result(built)
-
-#             resp = await post_multipart(session, endpoint, form, headers)
-#             if isinstance(resp, str):
-#                 return StampDataResponse(
-#                     requestId=request_id or "unknown",
-#                     status="failed",
-#                     summary=resp,
-#                 )
-#             return map_payload_to_response(resp, fallback_request_id=request_id)
-
-#         except Exception as e:
-#             return StampDataResponse(
-#                 requestId=request_id or "unknown",
-#                 status="failed",
-#                 summary=f"Exception calling API: {e}",
-#             )
-#         finally:
-#             if cleanup:
-#                 try:
-#                     cleanup()
-#                 except Exception:
-#                     pass
-
-# ---- main entrypoint ----
+# ---- main entrypoint ----------------------------------------------------------
 
 async def stamp_data_complete(
     req: StampDataRequest,
@@ -206,17 +115,10 @@ async def stamp_data_complete(
     api_key: Optional[str] = None,
 ) -> StampDataResponse:
     """
-    If file_hash is provided, send JSON.
-    Else prefer URL upload; otherwise use local file path (multipart).
-    Returns a StampDataResponse with { summary, structuredContent }.
+    If file_hash is provided, send JSON; else upload file (URL preferred).
+    Returns { requestId, summary, structuredContent } only.
     """
     rid = request_id or "unknown"
-
-    if not (req.file_url or req.file_path or req.file_hash):
-        return _fail_response(
-            request_id=rid,
-            summary="Neither file_url, file_path, nor file_hash provided.",
-        )
 
     headers = build_headers(req.api_key, api_key)
     endpoint = f"{API_BASE_URL}/v1/timestamp/one-shot"
@@ -224,42 +126,27 @@ async def stamp_data_complete(
     async with aiohttp.ClientSession() as session:
         cleanup = None
         try:
-            # --- HASH PATH (JSON) ---
+            # --- HASH PATH (JSON) ------------------------------------------------
             if req.file_hash:
                 h = normalize_hash(str(req.file_hash))
                 resp = await post_json(session, endpoint, {"hash": h}, headers)
                 if isinstance(resp, str):
-                    return _fail_response(request_id=rid, summary=resp)
+                    return _fail_response(request_id=rid, human=resp)
 
                 reqid = resp.get("requestId") or rid
                 fields = _extract_fields(resp)
-                status = fields["status"] or "unknown"
-                uid = fields["uid"]
-                stamped_at = fields["stamped_at"]
-                proof_url = fields["proof_url"]
 
-                # Prefer server-provided summary; else build one
-                summary = fields["summary"] or (
-                    f"Status: {status}"
-                    + (f" · UID: {uid}" if uid else "")
-                    + (" · Proof file ready" if proof_url else "")
-                )
-
-                if status in {"failed", "error"}:
+                if fields["status"] == "failed":
                     return _fail_response(
-                        request_id=reqid, summary=summary, proof_url=proof_url, raw=resp
+                        request_id=reqid,
+                        human="Stamp failed.",
+                        maybe_proof_url=fields.get("proof_url"),
+                        raw=resp,
                     )
-                return _ok_response(
-                    request_id=reqid,
-                    status=status,
-                    uid=uid,
-                    stamped_at=stamped_at,
-                    proof_url=proof_url,
-                    summary=summary,
-                    raw=resp,
-                )
 
-            # --- MULTIPART PATH (URL or local file) ---
+                return _ok_response(request_id=reqid, fields=fields, raw=resp)
+
+            # --- MULTIPART PATH (URL or local file) -----------------------------
             if req.file_url:
                 built = await maybe_await(
                     form_from_file_url(session, str(req.file_url), "application/octet-stream")
@@ -272,40 +159,25 @@ async def stamp_data_complete(
             form, cleanup = normalize_form_result(built)
             resp = await post_multipart(session, endpoint, form, headers)
             if isinstance(resp, str):
-                return _fail_response(request_id=rid, summary=resp)
+                return _fail_response(request_id=rid, human=resp)
 
             reqid = resp.get("requestId") or rid
             fields = _extract_fields(resp)
-            status = fields["status"] or "unknown"
-            uid = fields["uid"]
-            stamped_at = fields["stamped_at"]
-            proof_url = fields["proof_url"]
 
-            summary = fields["summary"] or (
-                f"Status: {status}"
-                + (f" · UID: {uid}" if uid else "")
-                + (" · Proof file ready" if proof_url else "")
-            )
-
-            if status in {"failed", "error"}:
+            if fields["status"] == "failed":
                 return _fail_response(
-                    request_id=reqid, summary=summary, proof_url=proof_url, raw=resp
+                    request_id=reqid,
+                    human="Stamp failed.",
+                    maybe_proof_url=fields.get("proof_url"),
+                    raw=resp,
                 )
-            return _ok_response(
-                request_id=reqid,
-                status=status,
-                uid=uid,
-                stamped_at=stamped_at,
-                proof_url=proof_url,
-                summary=summary,
-                raw=resp,
-            )
+
+            return _ok_response(request_id=reqid, fields=fields, raw=resp)
 
         except Exception as e:
             # Keep a single friendly error surface
-            return _fail_response(
-                request_id=rid, summary=f"Exception calling API: {e}"
-            )
+            return _fail_response(request_id=rid, human=f"Exception calling API: {e}")
+
         finally:
             if cleanup:
                 try:
