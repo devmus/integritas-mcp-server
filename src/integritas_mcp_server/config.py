@@ -6,6 +6,7 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
+    mcp_access_token: str
     minima_api_base: str  # e.g., https://api.minima.example
     minima_api_key: str | None = None
     minima_api_health: str | None = Field(None, alias="MINIMA_API_HEALTH")  # <- add this
