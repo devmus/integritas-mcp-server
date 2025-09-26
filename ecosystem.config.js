@@ -6,7 +6,8 @@ module.exports = {
       cwd: "/home/integritas-mcp-server",
       // Use the console script from your virtualenv (absolute path is safest)
       script: "/root/.local/bin/uv",
-      args: "run integritas-mcp http --host 127.0.0.1 --port 8787",
+      args: "run integritas-mcp sse --host 127.0.0.1 --port 8787",
+      // args: "run integritas-mcp http --host 127.0.0.1 --port 8787",
 
       // Tell PM2 this is a binary, not Node.js
       interpreter: "none",
