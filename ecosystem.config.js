@@ -3,10 +3,16 @@ module.exports = {
     {
       name: "integritas-mcp-server",
       cwd: "/home/integritas-mcp-server",
-      script: "/bin/bash",
-      args: ["-lc", "uv run integritas-mcp sse --host 127.0.0.1 --port 8787"],
-
-      // This is a native binary, not Node
+      script: "/home/integritas/.local/bin/uv", // << use `which uv` to confirm
+      args: [
+        "run",
+        "integritas-mcp",
+        "sse",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8787",
+      ],
       interpreter: "none",
       exec_mode: "fork",
 
@@ -17,8 +23,6 @@ module.exports = {
       min_uptime: "5s",
       max_restarts: 10,
       time: true,
-      watch: false,
-      restart_delay: 3000,
     },
   ],
 };
