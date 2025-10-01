@@ -15,8 +15,7 @@ _inner = mcp.sse_app()
 _settings = get_settings()
 
 # Wrap with bearer guard
-# _guarded = BearerGuard(_inner, _settings.mcp_access_token)
+_guarded = BearerGuard(_inner, _settings.mcp_access_token)
 
 # Mount at "/" so the effective SSE path is "/sse" (as you’re already using)
-# app = Starlette(routes=[Mount("/", app=_guarded)])
-app = Starlette(routes=[Mount("/")])
+app = Starlette(routes=[Mount("/", app=_guarded)])
