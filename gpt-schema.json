@@ -1,0 +1,342 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Integritas Blockchain API",
+    "version": "1.0.0",
+    "description": "Stamp and verify data on the Minima blockchain."
+  },
+  "servers": [{ "url": "https://integritas.minima.global" }],
+  "paths": {
+    "/core/v1/timestamp/post": {
+      "post": {
+        "summary": "Start a stamp job for a precomputed SHA3-256 hash",
+        "operationId": "stamp_start",
+        "description": "Accepts a lowercase 64-char SHA3-256 hex (no 0x). This is the hash of the uploaded file, computed client-side per the GPT playbook.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "Lowercase SHA3-256 hex of the file (64 chars, no 0x)."
+                  }
+                },
+                "required": ["hash"]
+              },
+              "examples": {
+                "by_hash": {
+                  "summary": "Stamp a lowercase SHA3-256 hex",
+                  "value": {
+                    "hash": "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hash forwarded and job created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "apiVersion": { "type": "integer" },
+                    "requestId": { "type": "string" },
+                    "status": { "type": "string" },
+                    "statusCode": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "status": { "type": "boolean" },
+                        "data": {
+                          "type": "string",
+                          "description": "Echo of the provided hash, possibly 0x-prefixed and/or uppercased by the service.",
+                          "pattern": "^0x?[0-9A-Fa-f]{64}$"
+                        },
+                        "uid": {
+                          "type": "string",
+                          "description": "UID used for subsequent status/proof calls.",
+                          "pattern": "^0x[0-9A-Fa-f]+$"
+                        }
+                      },
+                      "required": ["status", "uid"]
+                    }
+                  },
+                  "required": ["statusCode", "timestamp", "data"]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "apiVersion": 1,
+                      "requestId": "my-test-reqest-id",
+                      "status": "success",
+                      "statusCode": 200,
+                      "message": "Hash forwarded successfully",
+                      "timestamp": "2025-10-01T12:41:48.899Z",
+                      "data": {
+                        "status": true,
+                        "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+                        "uid": "0xE5C6310D49FB08A79E3A"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/core/v1/timestamp/get-proof-file-link": {
+      "post": {
+        "summary": "Check job status / get result file",
+        "operationId": "stamp_status",
+        "description": "Poll with a UID to retrieve a signed URL for the proof JSON once available. If the returned file is empty, poll again later.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "uids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^0x[0-9A-Fa-f]+$"
+                    },
+                    "minItems": 1,
+                    "description": "One or more UIDs to check"
+                  }
+                },
+                "required": ["uids"]
+              },
+              "examples": {
+                "by_uid": {
+                  "value": {
+                    "uids": ["0x1AFD52880259A90C0A12"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proof link and metadata when available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "apiVersion": { "type": "integer" },
+                    "requestId": { "type": "string" },
+                    "status": { "type": "string" },
+                    "statusCode": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "proof_file": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "file_name": { "type": "string" },
+                            "download_url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "file_size": { "type": "integer", "minimum": 0 },
+                            "expires_in": { "type": "string" },
+                            "bucket": { "type": "string" }
+                          },
+                          "required": ["download_url", "file_size"]
+                        }
+                      },
+                      "required": []
+                    }
+                  },
+                  "required": ["statusCode", "timestamp", "data"]
+                },
+                "examples": {
+                  "ready": {
+                    "value": {
+                      "apiVersion": 1,
+                      "requestId": "my-test-reqest-id",
+                      "status": "success",
+                      "statusCode": 200,
+                      "message": "Proof file uploaded successfully",
+                      "timestamp": "2025-10-01T13:23:24.463Z",
+                      "data": {
+                        "proof_file": {
+                          "file_name": "proof-file-2025-10-01T13-23-24-454Z.json",
+                          "download_url": "https://integritas.minima.global/files/proofs/proof-file-2025-10-01T13-23-24-454Z.json?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=minioadmin%2F20251001%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251001T132324Z&X-Amz-Expires=3600&X-Amz-Signature=8ee492337179f5d7470bf1126d88269fca83c9d6483388d2b7c2d135e9852803&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22proof-file-2025-10-01T13-23-24-454Z.json%22&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+                          "file_size": 232,
+                          "expires_in": "1 hour",
+                          "bucket": "proofs"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/core/v1/verify/post-lite-pdf": {
+      "post": {
+        "summary": "Verify proof → return PDF link + result",
+        "operationId": "verify_data",
+        "description": "Upload the proof JSON obtained from the stamp status step. Returns a signed PDF report link and the high-level verification result.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "jsonproof": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Send the proof JSON file (field name must be 'jsonproof')."
+                  }
+                },
+                "required": ["jsonproof"]
+              },
+              "encoding": {
+                "jsonproof": { "contentType": "application/json" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "apiVersion": { "type": "integer" },
+                    "requestId": { "type": "string" },
+                    "status": { "type": "string" },
+                    "statusCode": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "verification": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "fileHash": { "type": "string" },
+                            "nftcoinid": { "type": "string" },
+                            "nfttxnid": { "type": "string" },
+                            "data": {
+                              "type": "object",
+                              "additionalProperties": true,
+                              "properties": {
+                                "result": { "type": "string" },
+                                "validationMethod": { "type": "string" },
+                                "blockchain_data": {
+                                  "type": "array",
+                                  "items": { "type": "object" }
+                                }
+                              },
+                              "required": ["result"]
+                            }
+                          },
+                          "required": ["data"]
+                        },
+                        "file": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "file_name": { "type": "string" },
+                            "download_url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "file_size": { "type": "integer", "minimum": 0 },
+                            "expires_in": { "type": "string" },
+                            "bucket": { "type": "string" }
+                          },
+                          "required": ["download_url"]
+                        }
+                      },
+                      "required": ["verification", "file"]
+                    }
+                  },
+                  "required": ["data"]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "apiVersion": 1,
+                      "requestId": "abc",
+                      "status": "success",
+                      "statusCode": 200,
+                      "message": "Verification complete - PDF uploaded",
+                      "timestamp": "2025-10-01T14:11:47.619Z",
+                      "data": {
+                        "verification": {
+                          "fileHash": "0x399af4f7c498c2f6e635ead435b4aad850557314619a24d7b7eb62af108c5d84",
+                          "nftcoinid": "0xDA9696B5E330FFC3453D5FEFCE0E66A268037F1F9F9331C74C5F968363ADED17",
+                          "nfttxnid": "0x0000118B722FED686F069BAC955ACA05B5A833EE2D5638945905E52400AC99D0",
+                          "data": {
+                            "result": "full match",
+                            "validationMethod": "timestamplite",
+                            "blockchain_data": [
+                              {
+                                "block_number": 1697869,
+                                "block_date": "2025-09-22 08:52:06",
+                                "txpow_id": "0x000000347B3DC59352784BEE305FF95022710AAF0E6FAAAC833141CD813BAD78",
+                                "transactionid": "0x00002EBA4F9E3DA2B02F5057E912C0268C388BFAC99DEC45AF962136C126410D",
+                                "coin_id": "0xAE2DC7B0CB71961BAA809B24C01A9763FB4EA5189FAFF85EEE534F2D88523E36",
+                                "matched_hash": "0x399af4f7c498c2f6e635ead435b4aad850557314619a24d7b7eb62af108c5d84"
+                              }
+                            ]
+                          }
+                        },
+                        "file": {
+                          "file_name": "verification-report-2025-10-01T14-11-47-602Z.pdf",
+                          "download_url": "https://integritas.minima.global/files/reports/verification-report-2025-10-01T14-11-47-602Z.pdf?...",
+                          "file_size": 104183,
+                          "expires_in": "1 hour",
+                          "bucket": "reports"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

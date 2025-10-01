@@ -1,1 +1,77 @@
-hello integritas
+/////////
+// Still pending response
+
+{
+    "apiVersion": 1,
+    "requestId": "my-test-reqest-id",
+    "status": "success",
+    "statusCode": 200,
+    "message": "UID statuses fetched",
+    "timestamp": "2025-10-01T13:13:31.298Z",
+    "data": [
+        {
+            "status": true,
+            "uid": "0x1AFD52880259A90C0A12",
+            "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+            "number": 368,
+            "datecreated": "2025-10-01 13:13:26",
+            "onchain": false
+        }
+    ]
+}
+
+
+/////////////
+// Success response
+
+{
+    "apiVersion": 1,
+    "requestId": "my-test-reqest-id",
+    "status": "success",
+    "statusCode": 200,
+    "message": "UID statuses fetched",
+    "timestamp": "2025-10-01T13:18:06.707Z",
+    "data": [
+        {
+            "status": true,
+            "uid": "0x1AFD52880259A90C0A12",
+            "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+            "number": 368,
+            "datecreated": "2025-10-01 13:13:26",
+            "datestamped": "2025-10-01 13:14:03",
+            "root": "0x17C59BA16C9C32B3572241A04E07640AFDFD837FE19027C812D3B653E80A799B",
+            "proof": "0x000100000100",
+            "address": "0xFFEEDD",
+            "onchain": true
+        }
+    ]
+}
+
+/////////////
+// Error response
+
+{
+    "apiVersion": 1,
+    "requestId": "my-test-reqest-id",
+    "status": "success",
+    "statusCode": 200,
+    "message": "UID statuses fetched",
+    "timestamp": "2025-10-01T13:18:06.707Z",
+    "data": [
+        {
+            "status": true,
+            "uid": "0x1AFD52880259A90C0A12",
+            "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+            "number": 368,
+            "datecreated": "2025-10-01 13:13:26",
+            "datestamped": "2025-10-01 13:14:03",
+            "root": "0x17C59BA16C9C32B3572241A04E07640AFDFD837FE19027C812D3B653E80A799B",
+            "proof": "[ERROR]",
+            "address": "0xFFEEDD",
+            "onchain": false
+        }
+    ]
+}
+
+
+

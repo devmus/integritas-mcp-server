@@ -1,0 +1,319 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Integritas Blockchain API",
+    "version": "1.0.0",
+    "description": "Stamp and verify data on the Minima blockchain."
+  },
+  "servers": [{ "url": "https://integritas.minima.global/core" }],
+  "paths": {
+    "/v1/timestamp/gpt-stamp": {
+      "post": {
+        "summary": "Stamp a file (upload → MinIO → blockchain)",
+        "operationId": "stamp_file",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The file to hash and stamp (server uploads to MinIO, computes SHA3-256)."
+                  }
+                },
+                "required": ["file"],
+                "additionalProperties": false
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string", "format": "uri" },
+                        "name": { "type": "string" },
+                        "mime": { "type": "string" }
+                      },
+                      "required": ["url"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "description": "One or more short-lived, pre-signed URLs to download the exact bytes to be stamped."
+                  },
+                  "meta": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Optional metadata your server can store alongside the stamp job."
+                  }
+                },
+                "required": ["files"],
+                "additionalProperties": false
+              },
+              "examples": {
+                "single_file": {
+                  "value": {
+                    "files": [
+                      {
+                        "url": "https://files.openaiusercontent.com/file-abc123/....",
+                        "name": "example.pdf",
+                        "mime": "application/pdf"
+                      }
+                    ]
+                  }
+                },
+                "multiple_files": {
+                  "value": {
+                    "files": [
+                      {
+                        "url": "https://files.openaiusercontent.com/file-1/....",
+                        "name": "a.png",
+                        "mime": "image/png"
+                      },
+                      {
+                        "url": "https://files.openaiusercontent.com/file-2/....",
+                        "name": "b.jpg",
+                        "mime": "image/jpeg"
+                      }
+                    ],
+                    "meta": { "project": "demo" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uid": { "type": "string" },
+                    "status_url": { "type": "string", "format": "uri" }
+                  },
+                  "required": ["uid", "status_url"],
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/v1/timestamp/get-proof-file-link": {
+      "post": {
+        "summary": "Check job status / get result file",
+        "operationId": "stamp_status",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "uids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^0x[0-9A-Fa-f]+$"
+                    },
+                    "minItems": 1,
+                    "description": "One or more UIDs to check"
+                  }
+                },
+                "required": ["uids"]
+              },
+              "examples": {
+                "by_uid": {
+                  "value": {
+                    "uids": ["0x3E5BDA9C23AAE29A3250"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current status or final result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "running", "succeeded", "failed"]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "forwarded": {
+                          "type": "object",
+                          "properties": {
+                            "uid": {
+                              "type": "string",
+                              "pattern": "^0x[0-9A-Fa-f]+$"
+                            }
+                          },
+                          "required": ["uid"],
+                          "additionalProperties": true
+                        },
+                        "proofFile": {
+                          "type": "object",
+                          "properties": {
+                            "download_url": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
+                          "required": ["download_url"],
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": []
+                    },
+                    "error": { "type": "string" }
+                  },
+                  "required": ["status"],
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/v1/verify/post-lite-pdf": {
+      "post": {
+        "summary": "Verify proof → return PDF link + result",
+        "operationId": "verify_data",
+        "description": "Provide the proof JSON via URL, inline JSON, or as a file upload. Returns a signed PDF report link and the high-level result.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Upload the proof JSON file"
+                  }
+                },
+                "required": ["file"]
+              },
+              "encoding": {
+                "file": { "contentType": "application/json" }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "proof_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Short-lived URL to fetch the proof JSON."
+                  },
+                  "proof_json": {
+                    "description": "Inline proof JSON (object or JSON string).",
+                    "oneOf": [
+                      { "type": "object", "additionalProperties": true },
+                      { "type": "string" }
+                    ]
+                  }
+                },
+                "oneOf": [
+                  { "required": ["proof_url"] },
+                  { "required": ["proof_json"] }
+                ]
+              },
+              "examples": {
+                "via_url": {
+                  "value": {
+                    "proof_url": "https://files.openaiusercontent.com/file-proof/...."
+                  }
+                },
+                "inline_json_object": {
+                  "value": {
+                    "proof_json": { "uid": "0x3E5B...", "hash": "0xabc..." }
+                  }
+                },
+                "inline_json_string": {
+                  "value": {
+                    "proof_json": "{\"uid\":\"0x3E5B...\",\"hash\":\"0xabc...\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "verification": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "data": {
+                              "type": "object",
+                              "additionalProperties": true,
+                              "properties": {
+                                "result": { "type": "string" }
+                              },
+                              "required": ["result"]
+                            }
+                          },
+                          "required": ["data"]
+                        },
+                        "file": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "download_url": {
+                              "type": "string",
+                              "format": "uri"
+                            }
+                          },
+                          "required": ["download_url"]
+                        }
+                      },
+                      "required": ["verification", "file"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

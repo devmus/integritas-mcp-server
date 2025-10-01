@@ -1,0 +1,188 @@
+################
+# Stamp hash
+
+    "/v1/timestamp/post": {
+      "post": {
+        "summary": "Start a stamp job for a precomputed SHA3-256 hash",
+        "operationId": "stamp_start",
+        "description": "Accepts a lowercase 64-char SHA3-256 hex (no 0x). This is the hash of the uploaded file, computed client-side per the GPT playbook.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "Lowercase SHA3-256 hex of the file (64 chars, no 0x)."
+                  }
+                },
+                "required": ["hash"]
+              },
+              "examples": {
+                "by_hash": {
+                  "summary": "Stamp a lowercase SHA3-256 hex",
+                  "value": {
+                    "hash": "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hash forwarded and job created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "apiVersion": { "type": "integer" },
+                    "requestId": { "type": "string" },
+                    "status": { "type": "string" },
+                    "statusCode": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "status": { "type": "boolean" },
+                        "data": {
+                          "type": "string",
+                          "description": "Echo of the provided hash, possibly 0x-prefixed and/or uppercased by the service.",
+                          "pattern": "^0x?[0-9A-Fa-f]{64}$"
+                        },
+                        "uid": {
+                          "type": "string",
+                          "description": "UID used for subsequent status/proof calls.",
+                          "pattern": "^0x[0-9A-Fa-f]+$"
+                        }
+                      },
+                      "required": ["status", "uid"]
+                    }
+                  },
+                  "required": ["statusCode", "timestamp", "data"]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "apiVersion": 1,
+                      "requestId": "my-test-reqest-id",
+                      "status": "success",
+                      "statusCode": 200,
+                      "message": "Hash forwarded successfully",
+                      "timestamp": "2025-10-01T12:41:48.899Z",
+                      "data": {
+                        "status": true,
+                        "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+                        "uid": "0xE5C6310D49FB08A79E3A"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+################
+# Stamp url
+
+"/v1/timestamp/gpt-stamp": {
+      "post": {
+        "summary": "Stamp a file via URL",
+        "operationId": "stamp_file_url",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The ChatGPT-provided download URL of the attached file."
+                  }
+                },
+                "required": ["file_url"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uid": { "type": "string" },
+                    "status_url": { "type": "string", "format": "uri" }
+                  },
+                  "required": ["uid"],
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+################
+# Stamp a file
+
+"/v1/timestamp/gpt-stamp": {
+      "post": {
+        "summary": "Stamp a file (upload → MinIO → blockchain)",
+        "operationId": "stamp_file",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The file to hash and stamp (server uploads to MinIO, computes SHA3-256)."
+                  }
+                },
+                "required": ["file"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uid": { "type": "string" },
+                    "status_url": { "type": "string", "format": "uri" }
+                  },
+                  "required": ["uid", "status_url"],
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
