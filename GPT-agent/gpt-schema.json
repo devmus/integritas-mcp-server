@@ -214,14 +214,21 @@
               "schema": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["body"],
+                "required": [
+                  "body"
+                ],
                 "properties": {
                   "body": {
                     "type": "array",
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": ["address", "data", "proof", "root"],
+                      "required": [
+                        "address",
+                        "data",
+                        "proof",
+                        "root"
+                      ],
                       "properties": {
                         "address": {
                           "type": "string",

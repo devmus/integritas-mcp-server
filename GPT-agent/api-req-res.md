@@ -1,26 +1,5 @@
-Action: `stamp_data`
-Endpoint: `/v1/timestamp/post`
-Post - Req: `{"hash": "3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532"}`
-
-Example Res:
-
-```
-{
-    "apiVersion": 1,
-    "requestId": "my-test-reqest-id",
-    "status": "success",
-    "statusCode": 200,
-    "message": "Hash forwarded successfully",
-    "timestamp": "2025-10-03T09:58:08.581Z",
-    "data": {
-        "status": true,
-        "data": "0x3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
-        "uid": "0xDDECF964CCB254147A92"
-    }
-}
-```
-
-Endpoint: `/v1/timestamp/post`
+Action: `stamp_start`
+Endpoint: `/core/v1/timestamp/post`
 Post - Req: `{"hash": "3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532"}`
 
 Example Res:
@@ -42,7 +21,7 @@ Example Res:
 ```
 
 Action: `stamp_status`
-Endpoint: `/v1/timestamp/get-proof-file-link`
+Endpoint: `/core/v1/timestamp/get-proof-file-link`
 Post - Req: `{"uids": ["0xC0F0290EA5F62ED57FB1"]}`
 
 Example Res:
@@ -74,18 +53,20 @@ Example Res:
 ```
 
 Action: `verify_data`
-Endpoint: `/v1/timestamp/post`
+Endpoint: `/core/v1/verify/post-lite-pdf`
 Post - Req:
 
-```
-[
+```json
+{
+  "body": [
     {
-        "address": "0xFFEEDD",
-        "data": "0xa7476dbfeee5c444493a6d1f4df504f76ec1078b47722c6f07dfa8fcc375f8cb",
-        "proof": "0x000100000100",
-        "root": "0x929C7C74E75AE367F1861D6C8311B961F61A6AF80998FC0771183E1615F634C2"
+      "address": "0xFFEEDD",
+      "data": "0xa7476dbfeee5c444493a6d1f4df504f76ec1078b47722c6f07dfa8fcc375f8cb",
+      "proof": "0x000100000100",
+      "root": "0x929C7C74E75AE367F1861D6C8311B961F61A6AF80998FC0771183E1615F634C2"
     }
-]
+  ]
+}
 ```
 
 Example Res:
