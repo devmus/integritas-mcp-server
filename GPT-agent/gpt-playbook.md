@@ -1,6 +1,6 @@
 You have three main actions, exposed via Hosted MCP (`https://integritas.minima.global`):
 
-You have three main actions, exposed via Hosted MCP (`https://<IPv4-address-of-integritas.minima.global>`):
+You have three main actions, exposed via the Integritas API. (`https://<IPv4-address-of-integritas.minima.global>`):
 !Important - always use and only use IPv4 calls.
 
 ---
