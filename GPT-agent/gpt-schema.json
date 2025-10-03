@@ -206,29 +206,63 @@
       "post": {
         "summary": "Verify proof → return PDF link + result",
         "operationId": "verify_data",
-        "description": "Upload the proof JSON obtained from the stamp status step. Returns a signed PDF report link and the high-level verification result.",
+        "description": "Send the proof JSON content directly (extracted from the user’s uploaded file). Returns a signed PDF report link and the high-level verification result.",
         "requestBody": {
           "required": true,
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
                 "type": "object",
                 "additionalProperties": false,
+                "required": ["body"],
                 "properties": {
-                  "jsonproof": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Send the proof JSON file (field name must be 'jsonproof')."
+                  "body": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["address", "data", "proof", "root"],
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "description": "Hex-encoded address."
+                        },
+                        "data": {
+                          "type": "string",
+                          "description": "Hex-encoded data value."
+                        },
+                        "proof": {
+                          "type": "string",
+                          "description": "Hex-encoded proof."
+                        },
+                        "root": {
+                          "type": "string",
+                          "description": "Hex-encoded root."
+                        }
+                      }
+                    },
+                    "description": "Array of proof objects."
                   }
                 },
-                "required": ["jsonproof"]
+                "description": "Wrapper object required by tooling; send your array in the `body` property."
               },
-              "encoding": {
-                "jsonproof": { "contentType": "application/json" }
+              "examples": {
+                "proofArray": {
+                  "summary": "Array of proof objects in `body`",
+                  "value": [
+                    {
+                      "address": "0xFFEEDD",
+                      "data": "0x2ad5ee6b5d6320aadc0abb4fb358444b83d652fad2c26a4e535de8e9df95a934",
+                      "proof": "0x000100000100",
+                      "root": "0xE81202218A6896FFA394AFDA1660AA6749F0BEEEA02B71775F84853C43E5DFDE"
+                    }
+                  ]
+                }
               }
             }
           }
         },
+
         "responses": {
           "200": {
             "description": "Verification complete",

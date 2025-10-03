@@ -1,20 +1,45 @@
-# src/integritas_mcp_server/config.py
+# # src/integritas_mcp_server/config.py
 
+# from functools import lru_cache
+# from pydantic_settings import BaseSettings, SettingsConfigDict
+# from pydantic import Field
+
+# class Settings(BaseSettings):
+#     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
+#     mcp_access_token: str
+#     minima_api_base: str  # e.g., https://api.minima.example
+#     minima_api_key: str | None = None
+#     minima_api_health: str | None = Field(None, alias="MINIMA_API_HEALTH")  # <- add this
+#     request_timeout_seconds: float = 15.0
+#     max_retries: int = 3
+#     log_level: str = "INFO"
+
+# @lru_cache
+# def get_settings() -> Settings:
+#     return Settings() # type: ignore
+
+# src/integritas_mcp_server/config.py
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, AliasChoices  # <-- add AliasChoices
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
+
     mcp_access_token: str
     minima_api_base: str  # e.g., https://api.minima.example
-    minima_api_key: str | None = None
-    minima_api_health: str | None = Field(None, alias="MINIMA_API_HEALTH")  # <- add this
+
+    # Map either MINIMA_API_KEY or INTEGRITAS_API_KEY to this field:
+    minima_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MINIMA_API_KEY", "INTEGRITAS_API_KEY")
+    )
+
+    minima_api_health: str | None = Field(None, alias="MINIMA_API_HEALTH")
     request_timeout_seconds: float = 15.0
     max_retries: int = 3
     log_level: str = "INFO"
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings() # type: ignore
-
+    return Settings()  # type: ignore

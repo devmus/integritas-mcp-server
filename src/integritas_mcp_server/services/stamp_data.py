@@ -106,6 +106,14 @@ def _fail_response(
     }
     return _ok_response(request_id=request_id, fields=fields, raw=raw, summary_override=human)
 
+def _require_api_key_or_fail(headers: Dict[str, str], rid: str):
+    if "x-api-key" not in headers or not headers["x-api-key"]:
+        # Single friendly surface; keep it consistent across tools
+        return _fail_response(
+            request_id=rid,
+            human="No API key configured. Run `auth_set_api_key` once, "
+                "or set INTEGRITAS_API_KEY, then retry."
+        )
 
 # ---- main entrypoint ----------------------------------------------------------
 
@@ -121,6 +129,10 @@ async def stamp_data_complete(
     rid = request_id or "unknown"
 
     headers = build_headers(req.api_key, api_key)
+    maybe_err = _require_api_key_or_fail(headers, rid)
+    if maybe_err:
+        return maybe_err
+    
     endpoint = f"{API_BASE_URL}/v1/timestamp/one-shot"
 
     async with aiohttp.ClientSession() as session:

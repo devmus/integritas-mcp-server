@@ -1,5 +1,5 @@
 # src/integritas_mcp_server/tools.py
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from mcp.server.fastmcp import Context
 from integritas_mcp_server.core import mcp
@@ -8,6 +8,8 @@ from .models import (
     StampDataRequest, StampDataResponse,
     VerifyDataRequest, VerifyDataResponse,
 )
+from .tools_auth import auth_set_api_key as _set, auth_get_api_key as _get, auth_clear_api_key as _clear
+
 from .services.stamp_data import stamp_data_complete
 from .services.verify_data import verify_data_complete
 from .services.self_health import self_health
@@ -36,7 +38,7 @@ def register_tools() -> None:
     @mcp.tool()
     async def ready(req: ReadyRequest, ctx: Optional[Context] = None) -> dict:
         req_id = getattr(ctx, "request_id", None) if ctx else None
-        return await check_readiness(x_request_id=req_id, api_key=req.api_key)
+        return await check_readiness(req, req_id, api_key=req.api_key)
     ready.__doc__ = READY_DESCRIPTION
 
     @tool_logger
@@ -52,3 +54,15 @@ def register_tools() -> None:
         req_id = getattr(ctx, "request_id", None) if ctx else None
         return await verify_data_complete(req, req_id, api_key=req.api_key)
     verify_data.__doc__ = VERIFY_DATA_DESCRIPTION
+
+    @mcp.tool(name="auth_set_api_key")
+    async def auth_set_api_key_tool(body: Dict[str, Any]) -> dict:
+        return _set(body)
+
+    @mcp.tool(name="auth_get_api_key")
+    async def auth_get_api_key_tool() -> dict:
+        return _get({})
+
+    @mcp.tool(name="auth_clear_api_key")
+    async def auth_clear_api_key_tool() -> dict:
+        return _clear({})
